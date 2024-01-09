@@ -1,0 +1,254 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Electric Vehicle Data Visualization</title>
+  <script src="https://d3js.org/d3.v5.min.js"></script>
+</head>
+<body>
+
+<div id="bev-phev-chart"></div>
+<div style="height: 50px;"></div>
+<div id="make-chart"></div>
+<div style="height: 50px;"></div>
+<div id="yearly-registration-chart"></div>
+
+<script>
+  // Load data
+  d3.csv('electric_vehicle_population_data.csv').then(data => {
+    // Parse data
+    data.forEach(d => {
+      d.RegistrationYear = +d.RegistrationYear;
+      // Add additional parsing or filtering as needed
+    });
+
+    // Group data by VehicleType and count registrations
+    const vehicleTypeData = d3.nest()
+        .key(d => d['Electric Vehicle Type'])
+        .entries(data);
+
+    const countsByVehicleType = vehicleTypeData.map(entry => ({
+        key: entry.key,
+        value: entry.values.length
+    }));
+
+    // Group data by Make (company) and count registrations
+    const makeData = d3.nest()
+        .key(d => d['Make'])
+        .entries(data);
+
+    const countsByMake = makeData.map(entry => ({
+        key: entry.key,
+        value: entry.values.length
+    }));
+
+    // Create chart for Vehicle Type
+    const width = 800;
+    const height = 600;
+    const margin = { top: 40, right: 40, bottom: 150, left: 120 };
+
+    const svgVehicleType = d3.select('#bev-phev-chart')
+      .append('svg')
+      .attr('width', width + margin.left + margin.right)
+      .attr('height', height + margin.top + margin.bottom)
+      .append('g')
+      .attr('transform', `translate(${margin.left},${margin.top})`);
+
+    const xScaleVehicleType = d3.scaleBand()
+      .domain(countsByVehicleType.map(d => d.key))
+      .range([0, width])
+      .padding(0.2);
+
+    const yScaleVehicleType = d3.scaleLinear()
+      .domain([0, d3.max(countsByVehicleType, d => d.value)])
+      .range([height, 0]);
+
+    // Add bars for Vehicle Type
+    svgVehicleType.selectAll('rect')
+      .data(countsByVehicleType)
+      .enter()
+      .append('rect')
+      .attr('x', d => xScaleVehicleType(d.key))
+      .attr('y', d => yScaleVehicleType(d.value))
+      .attr('width', xScaleVehicleType.bandwidth())
+      .attr('height', d => height - yScaleVehicleType(d.value))
+      .attr('rx', 8)  // Rounded corners
+      .attr('ry', 8)
+      .attr('fill', d => (d.key === 'Plug-in Hybrid Electric Vehicle (PHEV)') ? '#ADD8E6' : '#90EE90');  // Light blue and light green
+
+    // Add numbers inside bars for Vehicle Type
+    svgVehicleType.selectAll('text')
+      .data(countsByVehicleType)
+      .enter()
+      .append('text')
+      .attr('x', d => xScaleVehicleType(d.key) + xScaleVehicleType.bandwidth() / 2)
+      .attr('y', d => yScaleVehicleType(d.value) + 15)  // Adjust this value for vertical placement
+      .text(d => d.value)
+      .style('text-anchor', 'middle')
+      .style('fill', 'black');
+
+    // Add axis for Vehicle Type
+    svgVehicleType.append('g')
+      .attr('transform', `translate(0, ${height})`)
+      .call(d3.axisBottom(xScaleVehicleType))
+      .selectAll('text')
+      .attr('transform', 'rotate(-45)')
+      .attr('text-anchor', 'end');
+
+    svgVehicleType.append('g')
+      .call(d3.axisLeft(yScaleVehicleType));
+
+    // Add labels for Vehicle Type
+    svgVehicleType.append('text')
+      .attr('transform', 'rotate(-90)')
+      .attr('y', 0 - margin.left)
+      .attr('x', 0 - height / 2)
+      .attr('dy', '1em')
+      .style('text-anchor', 'middle')
+      .text('Count');
+
+    svgVehicleType.append('text')
+      .attr('transform', `translate(${width / 2},${height + margin.top + 20})`)
+      .style('text-anchor', 'middle')
+      .text('Electric Vehicle Type');
+
+    // Create chart for Make
+    const svgMake = d3.select('#make-chart')
+      .append('svg')
+      .attr('width', width + margin.left + margin.right)
+      .attr('height', height + margin.top + margin.bottom)
+      .append('g')
+      .attr('transform', `translate(${margin.left},${margin.top})`);
+
+    const xScaleMake = d3.scaleLinear()
+      .domain([0, d3.max(countsByMake, d => d.value)])
+      .range([0, width]);
+
+    const yScaleMake = d3.scaleBand()
+      .domain(countsByMake.map(d => d.key))
+      .range([0, height])
+      .padding(0.2);
+
+    // Add bars for Make
+    svgMake.selectAll('rect')
+      .data(countsByMake)
+      .enter()
+      .append('rect')
+      .attr('x', 0)
+      .attr('y', d => yScaleMake(d.key))
+      .attr('width', d => xScaleMake(d.value))
+      .attr('height', yScaleMake.bandwidth())
+      .attr('rx', 8)  // Rounded corners
+      .attr('ry', 8)
+      .attr('fill', d => (d.key === 'TESLA') ? '#FFA07A' : '#FFE4B5');  // Different colors for each company
+
+    // Add numbers inside bars for Make
+    svgMake.selectAll('text')
+      .data(countsByMake)
+      .enter()
+      .append('text')
+      .attr('x', d => xScaleMake(d.value) + 20)
+      .attr('y', d => yScaleMake(d.key) + yScaleMake.bandwidth())
+      .text(d => d.value)
+      .style('text-anchor', 'middle')
+      .style('fill', 'black');
+
+    // Add axis for Make
+    svgMake.append('g')
+      .call(d3.axisLeft(yScaleMake));
+
+    // Add labels for Make
+    svgMake.append('text')
+      .attr('transform', 'rotate(-90)')
+      .attr('y', 0 - margin.left)
+      .attr('x', 0 - height / 2)
+      .attr('dy', '1em')
+      .style('text-anchor', 'middle')
+      .text('Count');
+
+    svgMake.append('text')
+      .attr('transform', `translate(${width / 2},${height + margin.top + 20})`)
+      .style('text-anchor', 'middle')
+      .text('Electric Vehicle by Company');
+
+    // Create chart for Yearly Registration
+const svgYearlyRegistration = d3.select('#yearly-registration-chart')
+  .append('svg')
+  .attr('width', width + margin.left + margin.right)
+  .attr('height', height + margin.top + margin.bottom)
+  .append('g')
+  .attr('transform', `translate(${margin.left},${margin.top})`);
+
+const registrationData = d3.nest()
+  .key(d => d['Model Year'].toString())  // Use Model Year
+  .rollup(v => v.length)
+  .entries(data);
+
+const countsByYear = registrationData.map(entry => ({
+  key: entry.key,
+  value: entry.value
+}));
+
+const xScaleYearlyRegistration = d3.scaleBand()
+  .domain(countsByYear.map(d => d.key))
+  .range([0, width])
+  .padding(0.2);
+
+const yScaleYearlyRegistration = d3.scaleLinear()
+  .domain([0, d3.max(countsByYear, d => d.value)])
+  .range([height, 0]);
+
+// Add bars for Yearly Registration
+svgYearlyRegistration.selectAll('rect')
+  .data(countsByYear)
+  .enter()
+  .append('rect')
+  .attr('x', d => xScaleYearlyRegistration(d.key))
+  .attr('y', d => yScaleYearlyRegistration(d.value))
+  .attr('width', xScaleYearlyRegistration.bandwidth())
+  .attr('height', d => height - yScaleYearlyRegistration(d.value))
+  .attr('rx', 8)  // Rounded corners
+  .attr('ry', 8)
+  .attr('fill', '#87CEFA');  // Light sky blue
+
+// Add numbers inside bars for Yearly Registration
+svgYearlyRegistration.selectAll('text')
+  .data(countsByYear)
+  .enter()
+  .append('text')
+  .attr('x', d => xScaleYearlyRegistration(d.key) + xScaleYearlyRegistration.bandwidth() / 2)
+  .attr('y', d => yScaleYearlyRegistration(d.value) + 15)  // Adjust this value for vertical placement
+  .text(d => d.value)
+  .style('text-anchor', 'middle')
+  .style('fill', 'black');
+
+// Add axis for Yearly Registration
+svgYearlyRegistration.append('g')
+  .attr('transform', `translate(0, ${height})`)
+  .call(d3.axisBottom(xScaleYearlyRegistration))
+  .selectAll('text')
+  .attr('transform', 'rotate(-45)')
+  .attr('text-anchor', 'end');
+
+svgYearlyRegistration.append('g')
+  .call(d3.axisLeft(yScaleYearlyRegistration));
+
+// Add labels for Yearly Registration
+svgYearlyRegistration.append('text')
+  .attr('transform', 'rotate(-90)')
+  .attr('y', 0 - margin.left)
+  .attr('x', 0 - height / 2)
+  .attr('dy', '1em')
+  .style('text-anchor', 'middle')
+  .text('Count');
+
+svgYearlyRegistration.append('text')
+  .attr('transform', `translate(${width / 2},${height + margin.top + 20})`)
+  .style('text-anchor', 'middle')
+  .text('Yearly Vehicle Registration');
+  });
+</script>
+
+</body>
+</html>
